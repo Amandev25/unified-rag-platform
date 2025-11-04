@@ -28,7 +28,9 @@ class IngestionClient:
         db_path: str = "chroma_local_db",
         text_model: str = "BAAI/bge-base-en",
         image_model: str = "google/siglip-base-patch16-224",
-        offline_mode: bool = True
+        offline_mode: bool = True,
+        use_ocr: bool = True,
+        ocr_languages: List[str] = None
     ):
         """
         Initialize the ingestion client.
@@ -38,13 +40,20 @@ class IngestionClient:
             text_model: SentenceTransformer model name for text embeddings
             image_model: HuggingFace model name for image embeddings
             offline_mode: If True, only use cached models (no downloads)
+            use_ocr: If True, use OCR to extract text from images (default: True)
+            ocr_languages: List of language codes for OCR (default: ['en'])
         """
+        if ocr_languages is None:
+            ocr_languages = ['en']
+        
         logger.info("Initializing IngestionClient...")
         self.pipeline = IngestionPipeline(
             db_path=db_path,
             text_model=text_model,
             image_model=image_model,
-            offline_mode=offline_mode
+            offline_mode=offline_mode,
+            use_ocr=use_ocr,
+            ocr_languages=ocr_languages
         )
         logger.info("✓ IngestionClient initialized")
     
@@ -306,7 +315,9 @@ def create_client(
     db_path: str = None,
     text_model: str = None,
     image_model: str = None,
-    offline_mode: bool = True
+    offline_mode: bool = True,
+    use_ocr: bool = None,
+    ocr_languages: List[str] = None
 ) -> IngestionClient:
     """
     Create an IngestionClient with default or custom settings.
@@ -316,6 +327,8 @@ def create_client(
         text_model: Text embedding model (default: "BAAI/bge-base-en" or TEXT_MODEL env var)
         image_model: Image embedding model (default: "google/siglip-base-patch16-224" or IMAGE_MODEL env var)
         offline_mode: Offline mode flag (default: True or OFFLINE_MODE env var)
+        use_ocr: Enable OCR for images (default: True or USE_OCR env var)
+        ocr_languages: List of OCR language codes (default: ['en'] or OCR_LANGUAGES env var)
         
     Returns:
         Initialized IngestionClient instance
@@ -329,12 +342,18 @@ def create_client(
         image_model = os.getenv("IMAGE_MODEL", "google/siglip-base-patch16-224")
     if offline_mode:
         offline_mode = os.getenv("OFFLINE_MODE", "1").lower() in ("1", "true", "yes")
+    if use_ocr is None:
+        use_ocr = os.getenv("USE_OCR", "1").lower() in ("1", "true", "yes")
+    if ocr_languages is None:
+        ocr_languages = os.getenv("OCR_LANGUAGES", "en").split(",")
     
     return IngestionClient(
         db_path=db_path,
         text_model=text_model,
         image_model=image_model,
-        offline_mode=offline_mode
+        offline_mode=offline_mode,
+        use_ocr=use_ocr,
+        ocr_languages=ocr_languages
     )
 
 
@@ -342,8 +361,11 @@ if __name__ == "__main__":
     """
     Example usage of the IngestionClient
     """
-    # Initialize client
+    # Initialize client with OCR enabled (default)
     client = create_client()
+    
+    # Or explicitly configure OCR
+    # client = create_client(use_ocr=True, ocr_languages=['en', 'es'])
     
     # Health check
     health = client.health_check()
@@ -353,14 +375,18 @@ if __name__ == "__main__":
     info = client.get_collection_info()
     print(f"Collection: {info['name']}, Count: {info['count']}")
     
-    # Example: Upload a file
+    # Example: Upload a file (with OCR for images)
     # client.upload_file("path/to/document.pdf")
+    # client.upload_file("path/to/screenshot.png")  # Will extract text via OCR
     
-    # Example: Search
+    # Example: Search (can search OCR-extracted text)
     # results = client.search("your query", n_results=10)
     # print(f"Found {len(results['ids'][0])} results")
     
-    # Example: Ingest directory
+    # Example: Search only OCR-processed images
+    # results = client.search("text from image", where={"type": "image_ocr"})
+    
+    # Example: Ingest directory (all images will be OCR-processed)
     # result = client.ingest_directory("path/to/documents")
     # print(f"Processed {result['chunks_processed']} chunks")
 

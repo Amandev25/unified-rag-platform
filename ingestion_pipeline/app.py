@@ -84,11 +84,20 @@ async def startup_event():
     offline_mode = os.getenv("OFFLINE_MODE", "1").lower() in ("1", "true", "yes")
     logger.info(f"Offline mode: {offline_mode}")
     
+    # OCR settings
+    use_ocr = os.getenv("USE_OCR", "1").lower() in ("1", "true", "yes")
+    ocr_languages = os.getenv("OCR_LANGUAGES", "en").split(",")
+    logger.info(f"Use OCR: {use_ocr}")
+    if use_ocr:
+        logger.info(f"OCR Languages: {ocr_languages}")
+    
     pipeline = IngestionPipeline(
         db_path=db_path,
         text_model=text_model,
         image_model=image_model,
-        offline_mode=offline_mode
+        offline_mode=offline_mode,
+        use_ocr=use_ocr,
+        ocr_languages=ocr_languages
     )
     logger.info("✓ Pipeline initialized successfully")
 

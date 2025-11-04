@@ -137,8 +137,10 @@ python ingestion_pipeline/setup_offline.py
 ```
 
 This script downloads:
-- SentenceTransformer model (`clip-ViT-B-32`) → cached in `~/.cache/huggingface/`
+- SentenceTransformer model (`BAAI/bge-base-en`) → cached in `~/.cache/huggingface/`
+- SigLIP image model (`google/siglip-base-patch16-224`) → cached in `~/.cache/huggingface/`
 - Whisper model (`base.en`) → cached in `~/.cache/whisper/`
+- EasyOCR models (English by default) → cached in `~/.EasyOCR/`
 
 ### Offline Mode
 
@@ -172,6 +174,7 @@ python ingestion_pipeline/ingest.py /path/to/files
 
 - **SentenceTransformer models**: `~/.cache/huggingface/hub/`
 - **Whisper models**: `~/.cache/whisper/`
+- **EasyOCR models**: `~/.EasyOCR/`
 - **ChromaDB data**: `chroma_local_db/` (configurable via `CHROMA_DB_PATH`)
 
 ### Verification
@@ -187,6 +190,101 @@ python -c "from sentence_transformers import SentenceTransformer; SentenceTransf
 python -c "import whisper; whisper.load_model('base.en')"
 # Should load without errors
 ```
+
+---
+
+## OCR Text Extraction from Images
+
+The ingestion pipeline now supports **OCR (Optical Character Recognition)** using **EasyOCR** to extract text from images. When enabled, images are processed to extract text, which is then converted to vector embeddings and stored in the database.
+
+### How OCR Works
+
+1. **Image Upload**: When an image file (JPG, PNG, GIF, BMP, WEBP) is uploaded
+2. **Text Extraction**: EasyOCR scans the image and extracts any readable text
+3. **Text Chunking**: Extracted text is split into chunks (similar to PDF processing)
+4. **Vector Embedding**: Each text chunk is converted to a vector embedding using the text model
+5. **Storage**: Text chunks and embeddings are stored in ChromaDB with metadata type `"image_ocr"`
+
+### Enabling/Disabling OCR
+
+OCR is **enabled by default**. To disable it:
+
+```bash
+# Disable OCR (images will use direct image embeddings via SigLIP instead)
+export USE_OCR=0
+
+# Enable OCR (default)
+export USE_OCR=1
+```
+
+### Configuring OCR Languages
+
+EasyOCR supports multiple languages. Configure them via environment variable:
+
+```bash
+# Single language (English - default)
+export OCR_LANGUAGES=en
+
+# Multiple languages (comma-separated)
+export OCR_LANGUAGES=en,es,fr
+
+# Chinese and English
+export OCR_LANGUAGES=en,ch_sim
+```
+
+**Common language codes:**
+- `en` - English
+- `es` - Spanish
+- `fr` - French
+- `de` - German
+- `ch_sim` - Chinese (Simplified)
+- `ch_tra` - Chinese (Traditional)
+- `ja` - Japanese
+- `ko` - Korean
+- `ar` - Arabic
+
+[Full list of supported languages](https://www.jaided.ai/easyocr/)
+
+### OCR vs Direct Image Embeddings
+
+The pipeline supports two modes for image processing:
+
+| Mode | Method | Use Case | Metadata Type |
+|------|--------|----------|---------------|
+| **OCR Mode** (default) | Extract text from images using EasyOCR | Images with text (documents, screenshots, signs) | `image_ocr` |
+| **Direct Image Mode** | Create image embeddings using SigLIP | Visual content search (photos, diagrams) | `image` |
+
+To use **direct image embeddings** (no OCR), set `USE_OCR=0`.
+
+### Example: OCR-Processed Image
+
+When OCR is enabled, an image containing text like a screenshot or scanned document will be processed as follows:
+
+```python
+# Image: screenshot.png containing text "Machine Learning Tutorial"
+# 
+# After OCR processing:
+# - Type: "image_ocr"
+# - Document: "Machine Learning Tutorial"
+# - Vector embedding created from extracted text
+# - Searchable via text queries: "machine learning", "tutorial", etc.
+```
+
+### Installation
+
+EasyOCR is included in `requirements.txt`:
+
+```bash
+pip install -r requirements.txt
+```
+
+For offline operation, download OCR models first:
+
+```bash
+python ingestion_pipeline/setup_offline.py
+```
+
+This downloads the required detection and recognition models for the specified languages.
 
 ---
 
@@ -214,7 +312,12 @@ The API will be available at `http://localhost:8000`
 ### Environment Variables
 
 - `CHROMA_DB_PATH`: Path to ChromaDB storage (default: `chroma_local_db`)
-- `EMBEDDING_MODEL`: SentenceTransformer model name (default: `clip-ViT-B-32`)
+- `TEXT_MODEL`: SentenceTransformer model for text embeddings (default: `BAAI/bge-base-en`)
+- `IMAGE_MODEL`: HuggingFace model for image embeddings (default: `google/siglip-base-patch16-224`)
+- `WHISPER_MODEL`: Whisper model for audio transcription (default: `base.en`)
+- `USE_OCR`: Enable OCR for text extraction from images (default: `1` for enabled)
+- `OCR_LANGUAGES`: Comma-separated list of language codes for OCR (default: `en`)
+- `OFFLINE_MODE`: Enable offline mode (default: `1`)
 - `PORT`: Server port (default: `8000`)
 - `HOST`: Server host (default: `0.0.0.0`)
 

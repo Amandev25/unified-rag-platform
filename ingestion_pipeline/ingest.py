@@ -12,7 +12,7 @@ import logging
 import torch
 
 from db_setup import setup_chromadb
-from parsers import PDFParser, DOCXParser, AudioParser, ImageParser
+from parsers import PDFParser, DOCXParser, AudioParser, ImageParser, ImageOCRParser
 from logger_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -24,7 +24,9 @@ class IngestionPipeline:
     def __init__(self, db_path: str = "chroma_local_db", 
                  text_model: str = "BAAI/bge-base-en", 
                  image_model: str = "google/siglip-base-patch16-224",
-                 offline_mode: bool = True):
+                 offline_mode: bool = True,
+                 use_ocr: bool = True,
+                 ocr_languages: List[str] = ['en']):
         """
         Initialize the ingestion pipeline.
         
@@ -33,6 +35,8 @@ class IngestionPipeline:
             text_model: SentenceTransformer model name for text embeddings
             image_model: HuggingFace model name for image embeddings (SigLIP)
             offline_mode: If True, only use cached models (no downloads)
+            use_ocr: If True, use OCR to extract text from images (default: True)
+            ocr_languages: List of language codes for OCR (default: ['en'])
         """
         # Setup ChromaDB
         self.client, self.collection = setup_chromadb(db_path)
@@ -127,6 +131,13 @@ class IngestionPipeline:
         self.docx_parser = DOCXParser()
         self.audio_parser = AudioParser(offline_mode=offline_mode)
         self.image_parser = ImageParser()
+        
+        # Store OCR settings
+        self.use_ocr = use_ocr
+        if use_ocr:
+            self.image_ocr_parser = ImageOCRParser(languages=ocr_languages, offline_mode=offline_mode)
+        else:
+            self.image_ocr_parser = None
         
         # Supported file extensions
         self.supported_extensions = {
@@ -389,29 +400,73 @@ class IngestionPipeline:
                     metadatas_batch.append(metadata)
             
             elif file_type == 'image':
-                image, metadata = self.image_parser.parse(file_path)
-                
-                # Use SigLIP for image embedding
-                try:
-                    inputs = self.image_processor(images=image, return_tensors="pt")
-                    # Move inputs to CPU
-                    inputs = {k: v.to('cpu') if hasattr(v, 'to') else v for k, v in inputs.items()}
-                    with torch.no_grad():
-                        image_embeds = self.image_model.get_image_features(**inputs)
-                    # Normalize the embedding
-                    image_embeds = image_embeds / image_embeds.norm(p=2, dim=-1, keepdim=True)
-                    embedding = image_embeds.squeeze().cpu().numpy().tolist()
-                    logger.debug(f"Successfully encoded image, embedding dim: {len(embedding)}")
-                except Exception as img_error:
-                    logger.error(f"Error encoding image: {img_error}", exc_info=True)
-                    raise
-                
-                chunk_id = self._generate_id(Path(file_path).name, "image")
-                
-                ids_batch.append(chunk_id)
-                embeddings_batch.append(embedding)
-                documents_batch.append("N/A")  # Images use "N/A" as document text
-                metadatas_batch.append(metadata)
+                # Use OCR to extract text from images if enabled
+                if self.use_ocr and self.image_ocr_parser:
+                    chunks = self.image_ocr_parser.parse(file_path)
+                    
+                    if not chunks:
+                        logger.warning(f"No text extracted from image via OCR: {Path(file_path).name}")
+                        return ([], [], [], [])
+                    
+                    # Process OCR text chunks like PDF/DOCX
+                    for i, (text_chunk, metadata) in enumerate(chunks):
+                        # Truncate text to fit model's token limit
+                        truncated_text = self._truncate_text_for_encoding(text_chunk)
+                        logger.debug(f"Image OCR Chunk {i}: original={len(text_chunk)} chars, truncated={len(truncated_text)} chars")
+                        
+                        try:
+                            # Create text embedding from OCR text
+                            embedding = self.text_embedding_model.encode(
+                                truncated_text,
+                                normalize_embeddings=False,
+                                show_progress_bar=False,
+                                convert_to_numpy=True
+                            ).tolist()
+                            logger.debug(f"Successfully encoded image OCR chunk {i}, embedding dim: {len(embedding)}")
+                        except Exception as enc_error:
+                            logger.error(f"Encoding failed for image OCR chunk {i}: {enc_error}")
+                            # If still fails, try with even shorter text
+                            max_chars = 200  # Very conservative
+                            truncated_text = text_chunk[:max_chars] if len(text_chunk) > max_chars else text_chunk
+                            logger.warning(f"Retrying with {len(truncated_text)} chars")
+                            embedding = self.text_embedding_model.encode(
+                                truncated_text,
+                                normalize_embeddings=False,
+                                show_progress_bar=False,
+                                convert_to_numpy=True
+                            ).tolist()
+                        
+                        chunk_id = self._generate_id(Path(file_path).name, "image_ocr", i)
+                        
+                        ids_batch.append(chunk_id)
+                        embeddings_batch.append(embedding)
+                        documents_batch.append(text_chunk)  # Store original OCR text
+                        metadatas_batch.append(metadata)
+                else:
+                    # Fall back to SigLIP image embedding if OCR is disabled
+                    image, metadata = self.image_parser.parse(file_path)
+                    
+                    # Use SigLIP for image embedding
+                    try:
+                        inputs = self.image_processor(images=image, return_tensors="pt")
+                        # Move inputs to CPU
+                        inputs = {k: v.to('cpu') if hasattr(v, 'to') else v for k, v in inputs.items()}
+                        with torch.no_grad():
+                            image_embeds = self.image_model.get_image_features(**inputs)
+                        # Normalize the embedding
+                        image_embeds = image_embeds / image_embeds.norm(p=2, dim=-1, keepdim=True)
+                        embedding = image_embeds.squeeze().cpu().numpy().tolist()
+                        logger.debug(f"Successfully encoded image, embedding dim: {len(embedding)}")
+                    except Exception as img_error:
+                        logger.error(f"Error encoding image: {img_error}", exc_info=True)
+                        raise
+                    
+                    chunk_id = self._generate_id(Path(file_path).name, "image")
+                    
+                    ids_batch.append(chunk_id)
+                    embeddings_batch.append(embedding)
+                    documents_batch.append("N/A")  # Images use "N/A" as document text
+                    metadatas_batch.append(metadata)
             
             logger.info(f"Successfully processed {len(ids_batch)} chunks from {Path(file_path).name}")
             
@@ -476,6 +531,29 @@ class IngestionPipeline:
         logger.info(f"Ingestion complete! Total items in collection: {self.collection.count()}")
         logger.info(f"{'='*60}")
     
+    def _clean_metadata(self, metadata: dict) -> dict:
+        """
+        Clean metadata to ensure all values are valid for ChromaDB.
+        ChromaDB only accepts str, int, float, or bool values (not None).
+        
+        Args:
+            metadata: Metadata dictionary
+            
+        Returns:
+            Cleaned metadata dictionary
+        """
+        cleaned = {}
+        for key, value in metadata.items():
+            if value is None:
+                # Convert None to string "null"
+                cleaned[key] = "null"
+            elif isinstance(value, (str, int, float, bool)):
+                cleaned[key] = value
+            else:
+                # Convert other types to string
+                cleaned[key] = str(value)
+        return cleaned
+    
     def batch_insert(self, ids: List[str], embeddings: List[List[float]], 
                      documents: List[str], metadatas: List[dict]):
         """Insert a batch of items into ChromaDB"""
@@ -483,11 +561,14 @@ class IngestionPipeline:
             return
         
         try:
+            # Clean all metadata to ensure valid values
+            cleaned_metadatas = [self._clean_metadata(m) for m in metadatas]
+            
             self.collection.upsert(
                 ids=ids,
                 embeddings=embeddings,
                 documents=documents,
-                metadatas=metadatas
+                metadatas=cleaned_metadatas
             )
             logger.info(f"Successfully inserted {len(ids)} items into ChromaDB")
         except Exception as e:

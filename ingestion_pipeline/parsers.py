@@ -6,6 +6,7 @@ import fitz  # PyMuPDF
 from docx import Document
 from PIL import Image
 import whisper
+import easyocr
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pathlib import Path
 from typing import List, Tuple, Dict, Any
@@ -264,8 +265,8 @@ class ImageParser:
             metadata = {
                 "source_file": Path(file_path).name,
                 "type": "image",
-                "format": image.format,
-                "size": image.size,
+                "format": image.format if image.format else "unknown",
+                "size": str(image.size),
                 "mode": image.mode
             }
             
@@ -273,5 +274,108 @@ class ImageParser:
             return image, metadata
         except Exception as e:
             logger.error(f"Error loading image {Path(file_path).name}: {str(e)}", exc_info=True)
+            raise
+
+
+class ImageOCRParser:
+    """Parser for extracting text from images using EasyOCR"""
+    
+    def __init__(self, languages: List[str] = ['en'], offline_mode: bool = True):
+        """
+        Initialize EasyOCR reader for text extraction.
+        
+        Args:
+            languages: List of language codes for OCR (default: ['en'])
+            offline_mode: If True, only use cached models
+        """
+        logger.info(f"Loading EasyOCR reader for languages: {languages}")
+        if offline_mode:
+            logger.info("  (Offline mode: using local cache only)")
+        else:
+            logger.info("  (Online mode: will download if not in cache)")
+        
+        try:
+            # gpu=False to use CPU (more compatible)
+            # download_enabled based on offline_mode
+            self.reader = easyocr.Reader(
+                languages, 
+                gpu=False,
+                download_enabled=not offline_mode
+            )
+            logger.info("✓ EasyOCR reader loaded successfully")
+        except Exception as e:
+            logger.error(f"Failed to load EasyOCR reader: {str(e)}")
+            error_msg = str(e).lower()
+            if offline_mode and ('not found' in error_msg or 'does not exist' in error_msg):
+                raise RuntimeError(
+                    f"EasyOCR model for languages {languages} not found in local cache.\n"
+                    f"Please download it first (while online) by running:\n"
+                    f"  python ingestion_pipeline/setup_offline.py\n"
+                    f"Or manually:\n"
+                    f"  python -c \"import easyocr; easyocr.Reader({languages}, gpu=False)\""
+                ) from e
+            else:
+                raise
+        
+        # Text splitter for chunking OCR text
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=50,
+            length_function=len,
+        )
+    
+    def parse(self, file_path: str) -> List[Tuple[str, Dict[str, Any]]]:
+        """
+        Load image file, extract text using OCR, and return chunks with metadata.
+        
+        Args:
+            file_path: Path to image file
+            
+        Returns:
+            List of tuples: (text_chunk, metadata_dict)
+        """
+        logger.info(f"Processing image with OCR: {Path(file_path).name}")
+        try:
+            # Load image to get metadata
+            image = Image.open(file_path).convert("RGB")
+            
+            # Perform OCR
+            logger.debug(f"Running OCR on image: {image.size}")
+            result = self.reader.readtext(file_path)
+            
+            # Extract text from OCR results
+            # result is a list of (bbox, text, confidence)
+            extracted_texts = [text for (bbox, text, conf) in result if conf > 0.3]  # Filter by confidence
+            full_text = " ".join(extracted_texts)
+            
+            logger.debug(f"OCR extracted {len(extracted_texts)} text segments, {len(full_text)} total chars")
+            
+            if not full_text.strip():
+                logger.warning(f"No text extracted from image: {Path(file_path).name}")
+                # Return empty result if no text found
+                return []
+            
+            # Split text into chunks
+            text_chunks = self.text_splitter.split_text(full_text)
+            logger.debug(f"Split OCR text into {len(text_chunks)} chunks")
+            
+            # Create chunks with metadata
+            chunks = []
+            for i, chunk in enumerate(text_chunks):
+                metadata = {
+                    "source_file": Path(file_path).name,
+                    "type": "image_ocr",  # Distinguish from regular images
+                    "format": image.format if image.format else "unknown",
+                    "size": str(image.size),
+                    "chunk_index": i,
+                    "total_chunks": len(text_chunks)
+                }
+                chunks.append((chunk, metadata))
+            
+            logger.info(f"OCR complete: {len(chunks)} chunks extracted from {Path(file_path).name}")
+            return chunks
+            
+        except Exception as e:
+            logger.error(f"Error processing image with OCR {Path(file_path).name}: {str(e)}", exc_info=True)
             raise
 

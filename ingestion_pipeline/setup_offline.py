@@ -84,6 +84,29 @@ def download_whisper_model(model_name: str = "base.en"):
         return False
 
 
+def download_easyocr_models(languages: list = ['en']):
+    """Download EasyOCR models to local cache"""
+    print(f"\n{'='*60}")
+    print(f"Downloading EasyOCR models for languages: {languages}")
+    print(f"{'='*60}")
+    
+    try:
+        import easyocr
+        
+        print(f"Downloading EasyOCR models for {languages} to local cache...")
+        # Creating a reader will automatically download models if not present
+        reader = easyocr.Reader(languages, gpu=False, download_enabled=True)
+        print(f"✓ Successfully downloaded EasyOCR models")
+        
+        # Test that it works
+        print("✓ EasyOCR reader initialized successfully")
+        
+        return True
+    except Exception as e:
+        print(f"✗ Error downloading EasyOCR models: {str(e)}")
+        return False
+
+
 def main():
     """Download all required models"""
     print("\n" + "="*60)
@@ -114,6 +137,10 @@ def main():
     whisper_model = os.getenv("WHISPER_MODEL", "base.en")
     whisper_success = download_whisper_model(whisper_model)
     
+    # Download EasyOCR models
+    ocr_languages = os.getenv("OCR_LANGUAGES", "en").split(",")
+    ocr_success = download_easyocr_models(ocr_languages)
+    
     # Summary
     print(f"\n{'='*60}")
     print("DOWNLOAD SUMMARY")
@@ -121,8 +148,9 @@ def main():
     print(f"Text model ({text_model}): {'✓ Downloaded' if text_success else '✗ Failed'}")
     print(f"Image model ({image_model}): {'✓ Downloaded' if image_success else '✗ Failed'}")
     print(f"Whisper model ({whisper_model}): {'✓ Downloaded' if whisper_success else '✗ Failed'}")
+    print(f"EasyOCR models ({ocr_languages}): {'✓ Downloaded' if ocr_success else '✗ Failed'}")
     
-    if text_success and image_success and whisper_success:
+    if text_success and image_success and whisper_success and ocr_success:
         print(f"\n{'='*60}")
         print("✓ ALL MODELS DOWNLOADED SUCCESSFULLY")
         print(f"{'='*60}")
@@ -130,6 +158,7 @@ def main():
         print("Model cache locations:")
         print(f"  - Text/Image models: ~/.cache/huggingface/")
         print(f"  - Whisper: ~/.cache/whisper/")
+        print(f"  - EasyOCR: ~/.EasyOCR/")
     else:
         print(f"\n{'='*60}")
         print("⚠ SOME DOWNLOADS FAILED")
