@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import List, Optional
 import uvicorn
 import logging
+from dotenv import load_dotenv
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -17,6 +18,9 @@ from pydantic import BaseModel, Field
 from ingest import IngestionPipeline
 from db_setup import setup_chromadb
 from logger_config import setup_logger
+
+# Load environment variables from .env file
+load_dotenv()
 
 logger = setup_logger(__name__, log_file="ingestion_api.log")
 

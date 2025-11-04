@@ -6,9 +6,13 @@ import os
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 import logging
+from dotenv import load_dotenv
 
 from ingest import IngestionPipeline
 from logger_config import setup_logger
+
+# Load environment variables from .env file
+load_dotenv()
 
 logger = setup_logger(__name__)
 

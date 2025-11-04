@@ -84,10 +84,12 @@ class IngestionPipeline:
                 logger.info("  (Online mode: will download if not in cache)")
             
             try:
-                self.image_model = AutoModel.from_pretrained(image_model)
+                # Force CPU device to reduce memory usage
+                device = torch.device('cpu')
+                self.image_model = AutoModel.from_pretrained(image_model).to(device)
                 self.image_processor = AutoProcessor.from_pretrained(image_model)
                 self.image_model.eval()  # Set to evaluation mode
-                logger.info("✓ Image embedding model (SigLIP) loaded successfully")
+                logger.info("✓ Image embedding model (SigLIP) loaded successfully (CPU mode)")
             except Exception as e:
                 logger.error(f"Failed to load image embedding model: {str(e)}")
                 error_msg = str(e).lower()
@@ -392,6 +394,8 @@ class IngestionPipeline:
                 # Use SigLIP for image embedding
                 try:
                     inputs = self.image_processor(images=image, return_tensors="pt")
+                    # Move inputs to CPU
+                    inputs = {k: v.to('cpu') if hasattr(v, 'to') else v for k, v in inputs.items()}
                     with torch.no_grad():
                         image_embeds = self.image_model.get_image_features(**inputs)
                     # Normalize the embedding

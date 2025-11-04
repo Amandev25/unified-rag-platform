@@ -1,6 +1,10 @@
 import os
 import json
 import requests
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 def build_prompt(question: str, context_chunks: list[dict]) -> str:
     """
@@ -88,22 +92,58 @@ def generate(prompt: str) -> str:
       - OLLAMA_URL (default: http://localhost:11434)
       - OLLAMA_MODEL (default: phi3:mini)
       - OLLAMA_TIMEOUT (seconds, default: 60)
+      - NGROK_AUTH_TOKEN (optional, for ngrok tunnel support)
     """
     ollama_url = os.environ.get("OLLAMA_URL", "http://localhost:11434")
     model = os.environ.get("OLLAMA_MODEL", "phi3:mini")
     timeout = int(os.environ.get("OLLAMA_TIMEOUT", "60"))
+    
+    # Add headers for ngrok support (if using ngrok tunnel)
+    headers = {}
+    ngrok_auth = os.environ.get("NGROK_AUTH_TOKEN")
+    if ngrok_auth:
+        headers["ngrok-skip-browser-warning"] = "true"
+        # Uncomment if using ngrok auth token
+        # headers["Authorization"] = f"Bearer {ngrok_auth}"
 
     print(f"--- Sending Prompt to Ollama at {ollama_url} (model={model}) ---")
+    
+    # Only print prompt preview to avoid cluttering output (first 200 chars)
+    if len(prompt) > 200:
+        print(f"Prompt preview: {prompt[:200]}... (total length: {len(prompt)} chars)")
+    else:
+        print(f"Prompt: {prompt}")
 
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
-        "stream": False,
+        "stream": False
     }
 
     try:
-        resp = requests.post(f"{ollama_url.rstrip('/')}/api/chat", json=payload, timeout=timeout)
-        resp.raise_for_status()
+        resp = requests.post(f"{ollama_url.rstrip('/')}/api/chat", json=payload, headers=headers, timeout=timeout)
+        
+        # Check status code before trying to parse JSON
+        if resp.status_code != 200:
+            print(f"\n--- Ollama HTTP Error ---")
+            print(f"Status Code: {resp.status_code}")
+            print(f"Response: {resp.text[:500]}")
+            
+            if resp.status_code == 403:
+                print("403 Forbidden - Authentication or access issue")
+                print("If using ngrok, check tunnel authentication requirements")
+                print("Or use local Ollama: set OLLAMA_URL=http://localhost:11434")
+            elif resp.status_code == 500:
+                print("500 Internal Server Error - Possible causes:")
+                print("  1. Prompt might be too long for the model")
+                print("  2. Model might not be loaded or available")
+                print("  3. Server might be out of memory")
+                print(f"  4. Try reducing the number of context chunks or prompt length")
+                print(f"\nTry: ollama pull {model}")
+                print(f"Or reduce DEFAULT_TOP_K in your .env file")
+            
+            return "Error: Could not get a response from the Ollama endpoint."
+        
         data = resp.json()
 
         # Try common response shapes returned by Ollama
@@ -137,6 +177,10 @@ def generate(prompt: str) -> str:
         if isinstance(e, requests.exceptions.ConnectionError):
             print("Could not connect to Ollama. Is the Ollama daemon running?")
             print("Try: ollama serve")
+        elif isinstance(e, requests.exceptions.Timeout):
+            print(f"Request timeout (>{timeout}s) - Prompt might be too long or model not loaded")
+            print(f"Try: ollama pull {model}")
+            print(f"Or reduce DEFAULT_TOP_K in your .env file")
         elif hasattr(e, 'response') and e.response is not None and e.response.status_code == 403:
             print("403 Forbidden - Authentication or access issue")
             print("If using ngrok, check tunnel authentication requirements")

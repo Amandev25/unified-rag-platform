@@ -1,0 +1,61 @@
+[
+  {
+    "path": "./data/uploads\\1762181551.412254_Prashant.pdf",
+    "name": "Prashant.pdf",
+    "type": "application/pdf"
+  },
+  {
+    "path": "data\\uploads\\1762192331274_download.pdf",
+    "name": "download.pdf",
+    "type": "application/pdf",
+    "processed": true
+  },
+  {
+    "path": "data\\uploads\\1762192248983_jyoti_dubey_internship_certificate.pdf",
+    "name": "jyoti_dubey_internship_certificate.pdf",
+    "type": "application/pdf",
+    "processed": true
+  },
+  {
+    "path": "data\\uploads\\1762210124475_testingsoftware.docx",
+    "name": "testingsoftware.docx",
+    "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "processed": true
+  },
+  {
+    "path": "data\\uploads\\1762216168540_23190503047_Integrated_B.Tech._and_M.Tech._in__Computer_Science___Engineering__YearSession_2024-2025-June-REGULAR_REGULAR_Term_4_Grade_card.pdf",
+    "name": "23190503047_Integrated_B.Tech._and_M.Tech._in__Computer_Science___Engineering__YearSession_2024-2025-June-REGULAR_REGULAR_Term_4_Grade_card.pdf",
+    "type": "application/pdf",
+    "processed": true
+  },
+  {
+    "path": "data\\uploads\\1762217444620_Registration Form Print - Scholarship Management System.pdf",
+    "name": "Registration Form Print - Scholarship Management System.pdf",
+    "type": "application/pdf",
+    "processed": true
+  },
+  {
+    "path": "C:\\dev\\RAG\\rag_desktop_ui\\data\\uploads\\1762217444620_Registration Form Print - Scholarship Management System.pdf",
+    "name": "Registration Form Print - Scholarship Management System.pdf",
+    "type": "application/pdf",
+    "processed": true
+  },
+  {
+    "path": "C:\\dev\\RAG\\rag_desktop_ui\\data\\uploads\\1762218495936_Resumes.pdf",
+    "name": "Resumes.pdf",
+    "type": "application/pdf",
+    "processed": true
+  },
+  {
+    "path": "C:\\dev\\RAG\\rag_desktop_ui\\data\\uploads\\1762218495936_Resumes.pdf",
+    "name": "Resumes.pdf",
+    "type": "application/pdf",
+    "processed": true
+  },
+  {
+    "path": "C:\\dev\\RAG\\rag_desktop_ui\\data\\uploads\\1762226708151_Design and Implementation of a Product Recommendation System with Association and Clustering Algorithms - ScienceDirect.pdf",
+    "name": "Design and Implementation of a Product Recommendation System with Association and Clustering Algorithms - ScienceDirect.pdf",
+    "type": "application/pdf",
+    "processed": true
+  }
+]

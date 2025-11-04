@@ -4,6 +4,10 @@ Centralizes all configuration settings
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 class RAGConfig:
@@ -11,7 +15,7 @@ class RAGConfig:
     
     # Database settings
     CHROMA_DB_PATH = os.getenv("CHROMA_DB_PATH", "../ingestion_pipeline/chroma_local_db")
-    COLLECTION_NAME = "multimodal_collection"
+    COLLECTION_NAME = os.getenv("COLLECTION_NAME", "multimodal_collection")
     
     # Model settings
     TEXT_MODEL = os.getenv("TEXT_MODEL", "BAAI/bge-base-en")
@@ -20,11 +24,11 @@ class RAGConfig:
     
     # Ollama settings (for generation)
     OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi3:mini")
+    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma:2b")
     OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "60"))
     
     # Retrieval settings
-    DEFAULT_TOP_K = int(os.getenv("DEFAULT_TOP_K", "10"))
+    DEFAULT_TOP_K = int(os.getenv("DEFAULT_TOP_K", "3"))
     
     # Audio processing settings (from ingestion pipeline)
     WHISPER_MODEL = os.getenv("WHISPER_MODEL", "base.en")
@@ -93,18 +97,6 @@ class RAGConfig:
         }
 
 
-# You can also set environment variables before importing this module
-# Example .env file content:
-"""
-CHROMA_DB_PATH=../ingestion_pipeline/chroma_local_db
-TEXT_MODEL=BAAI/bge-base-en
-IMAGE_MODEL=google/siglip-base-patch16-224
-OLLAMA_URL=http://localhost:11434
-OLLAMA_MODEL=phi3:mini
-OLLAMA_TIMEOUT=60
-DEFAULT_TOP_K=10
-OFFLINE_MODE=1
-"""
 
 
 if __name__ == "__main__":

@@ -6,6 +6,10 @@ import os
 import sys
 from pathlib import Path
 from typing import List, Dict, Union, Optional, Any
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add ingestion_pipeline to path
 current_dir = Path(__file__).parent
@@ -29,10 +33,12 @@ except ImportError:
 try:
     from retriever import RetrievalSystem
     from generator import get_grounded_answer
+    from config import RAGConfig
 except ImportError:
     # Try absolute import if running from project root
     from retrieval_generation.retriever import RetrievalSystem
     from retrieval_generation.generator import get_grounded_answer
+    from retrieval_generation.config import RAGConfig
 
 
 class RAGClient:
@@ -154,7 +160,7 @@ class RAGClient:
         self,
         query: Union[str, Image.Image],
         query_type: str = 'text',
-        top_k: int = 10,
+        top_k: Optional[int] = None,
         filter_type: Optional[str] = None
     ) -> List[Dict]:
         """
@@ -165,7 +171,7 @@ class RAGClient:
         Args:
             query: Text string or image (path or PIL Image)
             query_type: Type of query - 'text' or 'image' (default: 'text')
-            top_k: Number of top results to return (default: 10)
+            top_k: Number of top results to return (default: uses RAGConfig.DEFAULT_TOP_K)
             filter_type: Optional filter by type ('text', 'image', 'audio')
             
         Returns:
@@ -182,6 +188,9 @@ class RAGClient:
                 ...
             ]
         """
+        # Use DEFAULT_TOP_K from config if top_k not specified
+        if top_k is None:
+            top_k = RAGConfig.DEFAULT_TOP_K
         # Generate query embedding
         query_vector = self._embed_query(query, query_type)
         
@@ -293,7 +302,7 @@ class RAGClient:
         self,
         question: str,
         query_type: str = 'text',
-        top_k: int = 10,
+        top_k: Optional[int] = None,
         filter_type: Optional[str] = None
     ) -> Dict[str, Any]:
         """
@@ -304,7 +313,7 @@ class RAGClient:
         Args:
             question: User's question (text string)
             query_type: Type of query for retrieval - 'text' or 'image' (default: 'text')
-            top_k: Number of context chunks to retrieve (default: 10)
+            top_k: Number of context chunks to retrieve (default: uses RAGConfig.DEFAULT_TOP_K)
             filter_type: Optional filter by type ('text', 'image', 'audio')
             
         Returns:
@@ -314,6 +323,9 @@ class RAGClient:
                 - query: Original question
                 - context_count: Number of context chunks used
         """
+        # Use DEFAULT_TOP_K from config if top_k not specified
+        if top_k is None:
+            top_k = RAGConfig.DEFAULT_TOP_K
         # Step 1: Retrieve context
         print(f"\n[RAG] Retrieving context for query: '{question[:100]}...'")
         context_chunks = self.retrieve_context(

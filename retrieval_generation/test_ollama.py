@@ -4,11 +4,15 @@ Quick test to check if Ollama endpoint is working
 import os
 import requests
 import json
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 def test_ollama():
     # Get Ollama URL from environment or use default
-    ollama_url = "http://0.tcp.in.ngrok.io:17997"
-    model = os.getenv("OLLAMA_MODEL", "phi3:mini")
+    ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    model = os.getenv("OLLAMA_MODEL", "gemma:2b")
     
     # Add ngrok auth token if needed (optional)
     ngrok_auth = os.getenv("NGROK_AUTH_TOKEN", "34SzIeER6zuHC9FCXZhawouTkTH_54ormQNBppgnPNYToc3q6")

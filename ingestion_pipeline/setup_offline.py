@@ -6,6 +6,10 @@ After this, the pipeline will work completely offline.
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 def download_text_model(model_name: str = "BAAI/bge-base-en"):
     """Download SentenceTransformer text model to local cache"""
