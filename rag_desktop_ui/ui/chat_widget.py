@@ -82,7 +82,7 @@ class ChatWidget(QWidget):
                 border: 1px solid rgba(255, 255, 255, 0.2);
                 border-radius: 18px;
                 padding: 12px 18px;
-                font-size: 14px;
+                font-size: 15px;
                 font-weight: 400;
                 selection-background-color: #6a5acd;
             }
@@ -271,9 +271,9 @@ class ChatWidget(QWidget):
                     color: white;
                     padding: 12px 16px;
                     border-radius: 18px;
-                    font-size: 14px;
+                    font-size: 25px;
                     line-height: 1.4;
-                    max-width: 400px;
+                    max-width: 500px;
                 }
             """)
             alignment = Qt.AlignRight
@@ -284,9 +284,9 @@ class ChatWidget(QWidget):
                     color: #EAEAEA;
                     padding: 12px 16px;
                     border-radius: 18px;
-                    font-size: 14px;
+                    font-size: 25px;
                     line-height: 1.4;
-                    max-width: 400px;
+                    max-width: 500px;
                     border: 1px solid rgba(255, 255, 255, 0.1);
                 }
             """)
@@ -302,7 +302,7 @@ class ChatWidget(QWidget):
         time_label.setStyleSheet("""
             QLabel {
                 color: rgba(255, 255, 255, 0.5);
-                font-size: 11px;
+                font-size: 12px;
                 padding: 4px 8px;
                 background: transparent;
             }

@@ -51,5 +51,11 @@
     "name": "Resumes.pdf",
     "type": "application/pdf",
     "processed": true
+  },
+  {
+    "path": "C:\\dev\\RAG\\rag_desktop_ui\\data\\uploads\\1762226708151_Design and Implementation of a Product Recommendation System with Association and Clustering Algorithms - ScienceDirect.pdf",
+    "name": "Design and Implementation of a Product Recommendation System with Association and Clustering Algorithms - ScienceDirect.pdf",
+    "type": "application/pdf",
+    "processed": true
   }
 ]
