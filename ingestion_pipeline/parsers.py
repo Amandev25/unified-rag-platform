@@ -125,6 +125,11 @@ class AudioParser:
             model_name: Whisper model name (base.en, small, medium, etc.)
         """
         import os
+        import subprocess
+        
+        # Check if ffmpeg is available (required by Whisper)
+        self._check_ffmpeg()
+        
         logger.info(f"Loading Whisper model: {model_name}")
         if offline_mode:
             logger.info("  (Offline mode: using local cache only)")
@@ -150,6 +155,25 @@ class AudioParser:
                 ) from e
             else:
                 raise
+    
+    def _check_ffmpeg(self):
+        """Check if ffmpeg is available in the system PATH"""
+        import subprocess
+        import shutil
+        
+        # Check if ffmpeg command exists
+        ffmpeg_path = shutil.which('ffmpeg')
+        if ffmpeg_path is None:
+            logger.warning(
+                "ffmpeg not found in system PATH. Audio file processing may fail.\n"
+                "To install ffmpeg:\n"
+                "  Windows: Download from https://ffmpeg.org/download.html or use: choco install ffmpeg\n"
+                "  macOS: brew install ffmpeg\n"
+                "  Linux: sudo apt-get install ffmpeg (Ubuntu/Debian) or sudo yum install ffmpeg (RHEL/CentOS)"
+            )
+            # Don't raise error here, let it fail during actual processing with a better message
+        else:
+            logger.debug(f"ffmpeg found at: {ffmpeg_path}")
     
     def _format_timestamp(self, seconds: float) -> str:
         """Convert seconds to HH:MM:SS format"""
@@ -220,6 +244,9 @@ class AudioParser:
         Returns:
             List of tuples: (transcript_chunk, metadata_dict)
         """
+        import subprocess
+        import shutil
+        
         logger.info(f"Transcribing audio file: {Path(file_path).name}")
         try:
             result = self.model.transcribe(file_path, word_timestamps=False)
@@ -240,6 +267,30 @@ class AudioParser:
             
             logger.info(f"Audio transcribed: {len(chunks_with_metadata)} chunks created")
             return chunks_with_metadata
+        except FileNotFoundError as e:
+            # Check if this is an ffmpeg-related error
+            error_msg = str(e).lower()
+            if 'winerror 2' in error_msg or 'cannot find the file specified' in error_msg:
+                ffmpeg_path = shutil.which('ffmpeg')
+                if ffmpeg_path is None:
+                    error_message = (
+                        f"ffmpeg is required to process audio files but was not found in your system PATH.\n\n"
+                        f"To fix this:\n"
+                        f"  Windows:\n"
+                        f"    1. Download ffmpeg from https://ffmpeg.org/download.html\n"
+                        f"    2. Extract and add the 'bin' folder to your system PATH\n"
+                        f"    OR use Chocolatey: choco install ffmpeg\n\n"
+                        f"  macOS:\n"
+                        f"    brew install ffmpeg\n\n"
+                        f"  Linux (Ubuntu/Debian):\n"
+                        f"    sudo apt-get install ffmpeg\n\n"
+                        f"  Linux (RHEL/CentOS):\n"
+                        f"    sudo yum install ffmpeg\n\n"
+                        f"After installing, restart your application and try again."
+                    )
+                    logger.error(error_message)
+                    raise RuntimeError(error_message) from e
+            raise
         except Exception as e:
             logger.error(f"Error transcribing audio file {Path(file_path).name}: {str(e)}", exc_info=True)
             raise

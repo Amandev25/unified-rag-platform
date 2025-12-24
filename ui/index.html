@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Knowledge Base</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Landing Page -->
+    <div id="landing-page" class="page active">
+        <div class="container">
+            <header>
+                <h1>RAG Knowledge Base</h1>
+                <p class="subtitle">Upload documents and ask questions</p>
+            </header>
+            
+            <div class="options-grid">
+                <div class="option-card" id="upload-option">
+                    <div class="card-icon">📄</div>
+                    <h2>Upload Documents</h2>
+                    <p>Upload PDFs, images, audio files, and more to build your knowledge base</p>
+                    <button class="btn btn-primary" onclick="showUploadPage()">Upload File</button>
+                </div>
+                
+                <div class="option-card" id="query-option">
+                    <div class="card-icon">💬</div>
+                    <h2>Ask Questions</h2>
+                    <p>Query your knowledge base and get intelligent answers</p>
+                    <button class="btn btn-primary" onclick="showQueryPage()">Start Chat</button>
+                </div>
+            </div>
+            
+            <div class="stats-bar" id="stats-bar">
+                <div class="stat-item">
+                    <span class="stat-label">Documents</span>
+                    <span class="stat-value" id="doc-count">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Page -->
+    <div id="upload-page" class="page">
+        <div class="container">
+            <header class="page-header">
+                <button class="btn-back" onclick="showLandingPage()">← Back</button>
+                <h1>Upload Documents</h1>
+            </header>
+            
+            <div class="upload-section">
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-icon">📤</div>
+                    <h3>Drag & Drop or Click to Upload</h3>
+                    <p>Supports: PDF, DOCX, Images (JPG, PNG, GIF, BMP, WEBP), Audio (MP3, WAV, M4A, FLAC)</p>
+                    <input type="file" id="file-input" multiple accept=".pdf,.docx,.jpg,.jpeg,.png,.gif,.bmp,.webp,.mp3,.wav,.m4a,.flac">
+                    <button class="btn btn-primary" id="choose-files-btn">Choose Files</button>
+                </div>
+                
+                <div class="upload-progress" id="upload-progress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <p class="progress-text" id="progress-text">Uploading...</p>
+                </div>
+                
+                <div class="upload-results" id="upload-results"></div>
+                
+                <div class="file-list" id="file-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Query Page -->
+    <div id="query-page" class="page">
+        <div class="container">
+            <header class="page-header">
+                <button class="btn-back" onclick="showLandingPage()">← Back</button>
+                <h1>Ask Questions</h1>
+            </header>
+            
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message bot-message">
+                        <div class="message-content">
+                            <p>Hello! I'm your RAG assistant. Ask me anything about your knowledge base.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-input-container">
+                    <div class="input-wrapper">
+                        <input 
+                            type="text" 
+                            id="query-input" 
+                            placeholder="Type your question here..." 
+                            onkeypress="handleQueryKeyPress(event)"
+                        >
+                        <button class="btn btn-send" id="send-btn" onclick="sendQuery()">
+                            <span>Send</span>
+                        </button>
+                    </div>
+                    <div class="input-hint">
+                        <span>Press Enter to send</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p>Processing...</p>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
